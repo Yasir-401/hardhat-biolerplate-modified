@@ -8,16 +8,22 @@ import { ethers } from "ethers";
 import TokenArtifact from "../contracts/Token.json";
 import contractAddress from "../contracts/contract-address.json";
 
+/**
+ * Toe te voegen
+ */
+import APEnergyArtifact from "../contracts/APEnergy.json";
+import apenergyContractAddress from "../contracts/contract-address-apenergy.json";
+
 // All the logic of this dapp is contained in the Dapp component.
 // These other components are just presentational ones: they don't have any
 // logic. They just render HTML.
 import { NoWalletDetected } from "./NoWalletDetected";
 import { ConnectWallet } from "./ConnectWallet";
 import { Loading } from "./Loading";
-import { Transfer } from "./Transfer";
 import { TransactionErrorMessage } from "./TransactionErrorMessage";
 import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { NoTokensMessage } from "./NoTokensMessage";
+import RegisterParticipant from "./RegisterParticipant";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -35,7 +41,7 @@ const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 // Note that (3) and (4) are specific of this sample application, but they show
 // you how to keep your Dapp and contract's state in sync,  and how to send a
 // transaction.
-export class Dapp extends React.Component {
+export class Dapp_temp extends React.Component {
   constructor(props) {
     super(props);
 
@@ -88,24 +94,23 @@ export class Dapp extends React.Component {
 
     // If everything is loaded, we render the application.
     return (
-      <div className="container">
+      <div className="container p-4">
         <div className="row">
           <div className="col-12">
-            {/* <h1>
+            <h1>
               {this.state.tokenData.name} ({this.state.tokenData.symbol})
-            </h1> */}
+            </h1>
             <p>
-              Welcome <b>{this.state.selectedAddress}</b>
-              {/* , you have{" "}
+              Welcome <b>{this.state.selectedAddress}</b>, you have{" "}
               <b>
                 {this.state.balance.toString()} {this.state.tokenData.symbol}
               </b>
-              . */}
+              .
             </p>
           </div>
         </div>
 
-        {/* <hr /> */}
+        <hr />
 
         <div className="row">
           <div className="col-12">
@@ -146,14 +151,13 @@ export class Dapp extends React.Component {
               The component doesn't have logic, it just calls the transferTokens
               callback.
             */}
-            {this.state.balance.gt(0) && (
-              <Transfer
-                transferTokens={(to, amount) =>
-                  this._transferTokens(to, amount)
-                }
-                tokenSymbol={this.state.tokenData.symbol}
+            
+            {
+              <RegisterParticipant
+                registerParticipant={() => this._registerParticipant()}
               />
-            )}
+            }
+            
           </div>
         </div>
       </div>
@@ -225,6 +229,15 @@ export class Dapp extends React.Component {
       TokenArtifact.abi,
       this._provider.getSigner(0)
     );
+
+    /**
+     * Toe te voegen
+     */
+    this._apenergy = new ethers.Contract(
+      apenergyContractAddress.APEnergy,
+      APEnergyArtifact.abi,
+      this._provider.getSigner(0)
+    )
   }
 
   // The next two methods are needed to start and stop polling data. While
@@ -318,6 +331,54 @@ export class Dapp extends React.Component {
       // this part of the state.
       this.setState({ txBeingSent: undefined });
     }
+  }
+
+
+  async _registerParticipant() {
+
+    try {
+      // If a transaction fails, we save that error in the component's state.
+      // We only save one such error, so before sending a second transaction, we
+      // clear it.
+      this._dismissTransactionError();
+
+      // We send the transaction, and save its hash in the Dapp's state. This
+      // way we can indicate that we are waiting for it to be mined.
+      const tx = await this._apenergy.registerParticipant();
+      //this.setState({ txBeingSent: tx.hash });
+
+      // We use .wait() to wait for the transaction to be mined. This method
+      // returns the transaction's receipt.
+      const receipt = await tx.wait();
+
+      // The receipt, contains a status flag, which is 0 to indicate an error.
+      if (receipt.status === 0) {
+        // We can't know the exact error that made the transaction fail when it
+        // was mined, so we throw this generic one.
+        throw new Error("Transaction failed");
+      }
+
+      // If we got here, the transaction was successful, so you may want to
+      // update your state. Here, we update the user's balance.
+      await this._updateBalance();
+    } catch (error) {
+      // We check the error code to see if this error was produced because the
+      // user rejected a tx. If that's the case, we do nothing.
+      if (error.code === ERROR_CODE_TX_REJECTED_BY_USER) {
+        return;
+      }
+
+      // Other errors are logged and stored in the Dapp's state. This is used to
+      // show them to the user, and for debugging.
+      console.error(error);
+      this.setState({ transactionError: error });
+    } finally {
+      // If we leave the try/catch, we aren't sending a tx anymore, so we clear
+      // this part of the state.
+      this.setState({ txBeingSent: undefined });
+    }
+
+    console.log(await this._apenergy.participants())
   }
 
   // This method just clears part of the state.

@@ -1,17 +1,44 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { Dapp } from "./components/Dapp";
+import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
+import "bootstrap/dist/css/bootstrap.css"; // Import bootstrap if needed
+import Header from "./components/Header";
+import { ConnectWallet } from "./components/ConnectWallet";
+import Home from "./components/Home";
+import RegisterParticipant from "./components/RegisterParticipant";
+import RegisterResource from "./components/RegisterResource";
+import { Dapp } from "./contracts/dapp";
 
-// We import bootstrap here, but you can remove if you want
-import "bootstrap/dist/css/bootstrap.css";
+const App = () => {
+  const [activeComponent, setActiveComponent] = useState("home");
 
-// This is the entry point of your application, but it just renders the Dapp
-// react component. All of the logic is contained in it.
+  // Function to render the active component
+  const renderActiveComponent = () => {
+    switch (activeComponent) {
+      case "home":
+        return <Home />;
+      case "registerParticipant":
+        return <RegisterParticipant RegisterParticipant={Dapp.getInstance().RegisterParticipant} />;
+      case "registerResource":
+        return <RegisterResource />;
+      default:
+        return <Home />; 
+    }
+  };
+
+  useEffect(() => {
+    Dapp.getInstance();
+  }, []);
+
+  return (
+    <React.StrictMode>
+      <Header setActiveComponent={setActiveComponent} />
+      {activeComponent === "connectWallet" && <ConnectWallet />}
+      <div className="container mt-3">
+        {renderActiveComponent()}
+      </div>
+    </React.StrictMode>
+  );
+};
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-
-root.render(
-  <React.StrictMode>
-    <Dapp />
-  </React.StrictMode>
-);
+root.render(<App />);
